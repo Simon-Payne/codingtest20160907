@@ -161,6 +161,13 @@ public class ForgettingMap<K, V> implements Serializable {
         return values;
     }
 
+    /**
+     * This method places the most recently accessed (current)
+     * entry at the tail of the list. Since it uses head and tail
+     * 'pointers' to place the current entry, it takes constant
+     * time to complete.
+     * @param current Mapentry&lt;K,V&gt;
+     */
     private void reorderLruCache(MapEntry<K,V> current) {
         if (size > 1) { // nothing to do if only 1 entry in map
             MapEntry<K,V> next = current.after;
@@ -194,7 +201,12 @@ public class ForgettingMap<K, V> implements Serializable {
         }
     }
 
-    private void ensureCapa() throws ForgettingException {
+    /**
+     * Make sure that values array has sufficient capacity
+     * to add the new entry. Evict oldest (least recently accessed)
+     * entry if necessary.
+     */
+    private void ensureCapa() {
         if(size == maxAssociations) evictLeastUsed();
         else if (size == values.length) {
             int newSize = values.length * 2;
@@ -204,6 +216,14 @@ public class ForgettingMap<K, V> implements Serializable {
         }
     }
 
+    /**
+     * Evict the least recently-accessed entry from the map.
+     * This is determined by evicting the head entry.
+     * Since it goes direct to head, it takes O(1) constant time
+     * to find the entry to evict. Since it has to copy the list
+     * to remove the stale entry, it takes O(v) time to do that work,
+     * where v is the number of slots in the array.
+     */
     private void evictLeastUsed() {
         // assign head reference to next entry in LRU cache
         K oldHeadKey = head.getKey();
@@ -219,6 +239,11 @@ public class ForgettingMap<K, V> implements Serializable {
         values = list.toArray(new MapEntry[values.length]);
     }
 
+    /**
+     * Prints out the current LRU cache head and tail values as an aid to debugging.
+     * @param methodName String
+     * @param context String
+     */
     private void printLruCache(String methodName, String context) {
         if(logger.isDebugEnabled()) {
             logger.debug("[" + methodName + "-" + context + "]HEAD = " + (head == null ? "[null]" : "[key: " + head.getKey() + ", " +

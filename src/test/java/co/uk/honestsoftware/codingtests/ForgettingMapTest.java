@@ -301,15 +301,20 @@ public class ForgettingMapTest {
         }
     }
 
+    /**
+     * Enumeration of types of task that a TaskRunner may perform.
+     */
     enum TaskType {
         ADD,
         FIND
     }
 
     /**
-     * Runs a map task: either add() or find().
-     * @param <K>
-     * @param <V>
+     * Runs a map task: either add() or find(). This method
+     * uses a CountDown latch from the java.util.concurrent library
+     * as this handles multi-threading complexity for us.
+     * @param <K> key
+     * @param <V> content
      */
     class TaskRunner<K,V> implements Runnable {
 
