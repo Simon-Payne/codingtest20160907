@@ -70,6 +70,8 @@ public class ForgettingMap<K, V> implements Serializable {
     public transient MapEntry<K,V> head;
     public transient MapEntry<K,V> tail;
 
+    private Object lock = new Object(); // used for inter-thread communication
+
 
     public ForgettingMap(int maxAssociations) throws ForgettingException {
         if(maxAssociations > 0)
@@ -98,15 +100,20 @@ public class ForgettingMap<K, V> implements Serializable {
      * @param key K the key
      * @return V the content
      */
-    public synchronized V find(K key) {
+    public V find(K key) throws ForgettingException {
         printLruCache("find", "BEFORE");
 
         MapEntry<K,V> current = tail;
         do {
             if(current == null) return null; // for first iteration if map is empty
             else if (current.getKey().equals(key)) {
-                reorderLruCache(current);
-                printLruCache("find", "AFTER");
+
+                synchronized (lock) {
+                    reorderLruCache(current);
+                    printLruCache("find", "AFTER");
+                    lock.notify();
+                }
+
                 return current.getValue();
             }
             else current = current.before;
@@ -125,7 +132,7 @@ public class ForgettingMap<K, V> implements Serializable {
      * @param value
      * @throws ForgettingException
      */
-    public synchronized void add(K key, V value) throws ForgettingException {
+    public void add(K key, V value) throws ForgettingException {
         printLruCache("add", "BEFORE");
         boolean insert = true;
         for (int i = 0; i < size; i++) {
@@ -136,20 +143,24 @@ public class ForgettingMap<K, V> implements Serializable {
             }
         }
         if (insert) {
-            ensureCapa();
 
-            // insert new associations at the end of the LRU cache
-            // as indicated by 'next' being null
-            MapEntry<K,V> fresh = new MapEntry<K,V>(key, value, tail, null);
-            if(size > 0) // make any previous point to new entry
-              tail.after = values[size++] = fresh;
-            else {
-                head = values[size++] = fresh;
+            synchronized (lock) {
+                ensureCapa();
+
+                // insert new associations at the end of the LRU cache
+                // as indicated by 'next' being null
+                MapEntry<K,V> fresh = new MapEntry<K,V>(key, value, tail, null);
+                if(size > 0) // make any previous point to new entry
+                    tail.after = values[size++] = fresh;
+                else {
+                    head = values[size++] = fresh;
+                }
+                tail = fresh;
+                reorderLruCache(fresh);
+                printLruCache("add", "AFTER");
+                lock.notify();
             }
-            tail = fresh;
-            reorderLruCache(fresh);
         }
-        printLruCache("add", "AFTER");
     }
 
     /**
